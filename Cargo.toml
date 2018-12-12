@@ -5,3 +5,7 @@ authors = ["Patrick Dimond <patdimond0@gmail.com>"]
 
 [dependencies]
 regex = "1.1.0"
+
+## Day 4
+chrono = "0.4.6"
+

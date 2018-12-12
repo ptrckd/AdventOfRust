@@ -2,9 +2,12 @@ extern crate chrono;
 extern crate regex;
 
 use chrono::prelude::*;
+use chrono::Duration;
+
 use regex::Regex;
 
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::error;
 use std::fs::File;
 use std::io::BufRead;
@@ -89,6 +92,100 @@ fn main() -> Result<(), Box<error::Error>> {
 
     events.sort();
 
-    println!("{:?}", events[0]);
+    let guard_sleep_times = guard_sleep_time(&events);
+
+    let sleepy_guard = get_sleepiest_guard(&guard_sleep_times);
+
+    let minutes_asleep = guard_sleep_times.get(&sleepy_guard).unwrap();
+
+    let mut sleepiest_minute = 0;
+    let mut most_times = 0;
+
+    for (i, times) in minutes_asleep.iter().enumerate() {
+        if *times > most_times {
+            sleepiest_minute = i;
+            most_times = *times;
+        }
+    }
+
+    println!(
+        "Guard: {}, slept the most and is most likely to be asleep during minute {}",
+        sleepy_guard, sleepiest_minute
+    );
+
+    println!("The code is {}", sleepy_guard * sleepiest_minute as i32);
+
+    let mut most_slept_minute = 0;
+    let mut number_of_times = 0;
+    let mut guard = 0;
+
+    for (guard_id, times) in guard_sleep_times.iter() {
+        for (i, times) in times.iter().enumerate() {
+            if *times > number_of_times {
+                guard = *guard_id;
+                most_slept_minute = i;
+                number_of_times = *times;
+            }
+        }
+    }
+
+    println!(
+        "Guard {} is most frequently asleep on minute {}. It happened {} times.",
+        guard, most_slept_minute, number_of_times
+    );
+    println!("The code is {}", guard * most_slept_minute as i32);
+
     Ok(())
+}
+
+fn guard_sleep_time(events: &Vec<GuardEvent>) -> HashMap<i32, [u32; 60]> {
+    let mut time_asleep: HashMap<i32, [u32; 60]> = HashMap::new();
+
+    let mut guard_id = 0;
+    let mut previous_event = events.get(0).unwrap();
+
+    for event in events {
+        match event.action {
+            GuardAction::StartShift(id) => {
+                if let GuardAction::FallAsleep = previous_event.action {
+                    let mut duration = time_asleep.entry(guard_id).or_insert([0; 60]);
+                    for minute in previous_event.date_time.minute()..event.date_time.minute() {
+                        duration[minute as usize] += 1;
+                    }
+                }
+
+                guard_id = id;
+                previous_event = event;
+            }
+            GuardAction::FallAsleep => {
+                previous_event = event;
+            }
+            GuardAction::WakeUp => {
+                if let GuardAction::FallAsleep = previous_event.action {
+                    let mut duration = time_asleep.entry(guard_id).or_insert([0; 60]);
+                    for minute in previous_event.date_time.minute()..event.date_time.minute() {
+                        duration[minute as usize] += 1;
+                    }
+                }
+                previous_event = event;
+            }
+        }
+    }
+
+    time_asleep
+}
+
+fn get_sleepiest_guard(sleep_times: &HashMap<i32, [u32; 60]>) -> i32 {
+    let mut max_sleep_time = 0;
+    let mut guard = 0;
+
+    for (key, value) in sleep_times.iter() {
+        let sleep_time = value.iter().sum();
+        if sleep_time > max_sleep_time {
+            max_sleep_time = sleep_time;
+            guard = *key;
+        }
+    }
+
+    guard
 }
