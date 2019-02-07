@@ -61,21 +61,39 @@ fn main() -> Result<(), Box<error::Error>> {
     let file = File::open("day3_input.txt")?;
     let input = BufReader::new(file);
 
-    let re = Regex::new(r"#(\d+) @ (\d+),(\d+): (\d+)x(\d+)").unwrap();
-
     let lines: Result<Vec<String>, std::io::Error> = input.lines().collect();
     let lines = lines.expect("Issue reading lines from file");
 
-    let matches: Vec<regex::Captures> = lines
+    let matches = get_matches(&lines);
+
+    let claimed_areas = get_areas(&matches);
+
+    let all_overlapping_points = get_overlapping_points(&claimed_areas);
+
+    println!("Total overlapping points: {}", all_overlapping_points.len());
+
+    areas_no_overlaps(&claimed_areas, &all_overlapping_points);
+
+    Ok(())
+}
+
+fn get_matches<'a>(lines: &'a Vec<String>) -> Vec<regex::Captures> {
+    let re = Regex::new(r"#(\d+) @ (\d+),(\d+): (\d+)x(\d+)").unwrap();
+
+    lines
         .iter()
         .map(|line| re.captures(line).unwrap())
-        .collect();
+        .collect()
+}
 
-    let claimed_areas: Vec<ClaimedArea> = matches
+fn get_areas(matches: &Vec<regex::Captures>) -> Vec<ClaimedArea> {
+    matches
         .iter()
         .map(|r_match| ClaimedArea::new(r_match).unwrap())
-        .collect();
+        .collect()
+}
 
+fn get_overlapping_points<'a>(claimed_areas: &'a Vec<ClaimedArea>) -> HashSet<&'a (u32, u32)> {
     let mut all_overlapping_points: HashSet<&(u32, u32)> = HashSet::new();
     let mut read = 1;
 
@@ -92,10 +110,14 @@ fn main() -> Result<(), Box<error::Error>> {
         }
         read += 1;
     }
+    all_overlapping_points
+}
 
-    println!("Total overlapping points: {}", all_overlapping_points.len());
-
-    for claimed_area in &claimed_areas {
+fn areas_no_overlaps(
+    claimed_areas: &Vec<ClaimedArea>,
+    all_overlapping_points: &HashSet<&(u32, u32)>,
+) {
+    for claimed_area in claimed_areas {
         let mut overlap = false;
         for point in &claimed_area.claimed_points {
             if all_overlapping_points.contains(&point) {
@@ -106,8 +128,5 @@ fn main() -> Result<(), Box<error::Error>> {
             println!("No overlap on area: {}", claimed_area.id);
         }
     }
-
-    Ok(())
 }
-
 // #15 @ 916,559: 29x27
