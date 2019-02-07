@@ -9,3 +9,6 @@ regex = "1.1.0"
 ## Day 4
 chrono = "0.4.6"
 
+[profile.release]
+debug = true
+
