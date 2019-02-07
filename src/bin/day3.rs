@@ -1,7 +1,7 @@
 extern crate regex;
 use regex::Regex;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::error;
 use std::fs::File;
 use std::io::BufRead;
@@ -50,9 +50,10 @@ impl ClaimedArea {
             || (self.south_edge as i32) > (other.south_edge as i32 + other.height as i32))
     }
 
-    fn overlapping_points<'a>(&'a self, other: &'a ClaimedArea) -> HashSet<&'a (u32, u32)> {
+    fn overlapping_points(&self, other: &ClaimedArea) -> HashSet<(u32, u32)> {
         self.claimed_points
             .intersection(&other.claimed_points)
+            .cloned()
             .collect()
     }
 }
@@ -68,11 +69,14 @@ fn main() -> Result<(), Box<error::Error>> {
 
     let claimed_areas = get_areas(&matches);
 
-    let all_overlapping_points = get_overlapping_points(&claimed_areas);
+    let grid = create_grid(&claimed_areas);
 
-    println!("Total overlapping points: {}", all_overlapping_points.len());
+    println!(
+        "Total overlapping points: {}",
+        grid.values().filter(|x| **x != 1).count()
+    );
 
-    areas_no_overlaps(&claimed_areas, &all_overlapping_points);
+    areas_no_overlaps(&claimed_areas, &grid);
 
     Ok(())
 }
@@ -93,38 +97,24 @@ fn get_areas(matches: &Vec<regex::Captures>) -> Vec<ClaimedArea> {
         .collect()
 }
 
-fn get_overlapping_points<'a>(claimed_areas: &'a Vec<ClaimedArea>) -> HashSet<&'a (u32, u32)> {
-    let mut all_overlapping_points: HashSet<&(u32, u32)> = HashSet::new();
-    let mut read = 1;
+fn create_grid(claimed_areas: &Vec<ClaimedArea>) -> HashMap<(u32, u32), u32> {
+    let mut grid: HashMap<(u32, u32), u32> = HashMap::new();
 
-    let len = claimed_areas.len();
-
-    for x in claimed_areas.iter().take(len - 1) {
-        for y in claimed_areas.iter().skip(read) {
-            if x.overlaps(y) {
-                let overlapping_points = x.overlapping_points(y);
-                for point in &overlapping_points {
-                    all_overlapping_points.insert(point);
-                }
-            }
+    for area in claimed_areas {
+        for (s, w) in area.claimed_points.iter() {
+            *grid.entry((*s, *w)).or_insert(0) += 1;
         }
-        read += 1;
     }
-    all_overlapping_points
+    grid
 }
 
-fn areas_no_overlaps(
-    claimed_areas: &Vec<ClaimedArea>,
-    all_overlapping_points: &HashSet<&(u32, u32)>,
-) {
+fn areas_no_overlaps(claimed_areas: &Vec<ClaimedArea>, grid: &HashMap<(u32, u32), u32>) {
     for claimed_area in claimed_areas {
-        let mut overlap = false;
-        for point in &claimed_area.claimed_points {
-            if all_overlapping_points.contains(&point) {
-                overlap = true;
-            }
-        }
-        if !overlap {
+        if claimed_area
+            .claimed_points
+            .iter()
+            .all(|(s, w)| grid[&(*s, *w)] == 1)
+        {
             println!("No overlap on area: {}", claimed_area.id);
         }
     }
