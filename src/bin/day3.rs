@@ -9,11 +9,11 @@ use std::io::BufReader;
 
 struct ClaimedArea {
     id: u32,
-    south_edge: u32,
-    west_edge: u32,
-    width: u32,
-    height: u32,
-    claimed_points: HashSet<(u32, u32)>,
+    south_edge: i32,
+    west_edge: i32,
+    width: i32,
+    height: i32,
+    claimed_points: HashSet<(i32, i32)>,
 }
 
 impl ClaimedArea {
@@ -25,7 +25,7 @@ impl ClaimedArea {
         let width = captures.get(4).unwrap().as_str().parse()?;
         let height = captures.get(5).unwrap().as_str().parse()?;
 
-        let mut claimed_points: HashSet<(u32, u32)> = HashSet::new();
+        let mut claimed_points: HashSet<(i32, i32)> = HashSet::new();
 
         for x in west_edge..(west_edge + width) {
             for y in south_edge..(south_edge + height) {
@@ -44,13 +44,13 @@ impl ClaimedArea {
     }
 
     fn overlaps(&self, other: &ClaimedArea) -> bool {
-        !((self.west_edge as i32) > (other.west_edge as i32 + other.width as i32)
-            || (self.west_edge as i32 + self.width as i32) < (other.west_edge as i32)
-            || (self.south_edge as i32 + self.height as i32) < (other.south_edge as i32)
-            || (self.south_edge as i32) > (other.south_edge as i32 + other.height as i32))
+        !(self.west_edge > other.west_edge + other.width
+            || self.west_edge + self.width < other.west_edge
+            || self.south_edge + self.height < other.south_edge
+            || self.south_edge > other.south_edge + other.height)
     }
 
-    fn overlapping_points(&self, other: &ClaimedArea) -> HashSet<(u32, u32)> {
+    fn overlapping_points(&self, other: &ClaimedArea) -> HashSet<(i32, i32)> {
         self.claimed_points
             .intersection(&other.claimed_points)
             .cloned()
@@ -97,8 +97,8 @@ fn get_areas(matches: &Vec<regex::Captures>) -> Vec<ClaimedArea> {
         .collect()
 }
 
-fn create_grid(claimed_areas: &Vec<ClaimedArea>) -> HashMap<(u32, u32), u32> {
-    let mut grid: HashMap<(u32, u32), u32> = HashMap::new();
+fn create_grid(claimed_areas: &Vec<ClaimedArea>) -> HashMap<(i32, i32), u32> {
+    let mut grid: HashMap<(i32, i32), u32> = HashMap::new();
 
     for area in claimed_areas {
         for (s, w) in area.claimed_points.iter() {
@@ -108,7 +108,7 @@ fn create_grid(claimed_areas: &Vec<ClaimedArea>) -> HashMap<(u32, u32), u32> {
     grid
 }
 
-fn areas_no_overlaps(claimed_areas: &Vec<ClaimedArea>, grid: &HashMap<(u32, u32), u32>) {
+fn areas_no_overlaps(claimed_areas: &Vec<ClaimedArea>, grid: &HashMap<(i32, i32), u32>) {
     for claimed_area in claimed_areas {
         if claimed_area
             .claimed_points
